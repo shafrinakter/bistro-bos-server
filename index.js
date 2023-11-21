@@ -1,6 +1,8 @@
 const express = require('express');
 const app = express();
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
+require('dotenv').config()
 const port = process.env.PORT || 5000;
 
 // middleWare
@@ -34,18 +36,49 @@ async function run() {
     const reviewCollention = client.db('bistroDb').collection('review');
     const cartCollention = client.db('bistroDb').collection('carts');
 
-    // users related api
-    app.post('/user', async(req,res)=>{
+    // jwt related api
+    app.post('/jwt', async (req, res) => {
       const user = req.body;
-      const query = {email: user.email};
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+      console.log(token);
+      res.send({ token });
+    })
+
+    // users related api
+    app.get('/user', async (req, res) => {
+      console.log(req.headers);
+      const result = await userCollection.find().toArray();
+      res.send(result)
+    })
+    app.post('/user', async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
       const existingUser = await userCollection.findOne(query)
-      if(existingUser){
-        res.send({message: 'User Already Exists', insertedId: null})
+      if (existingUser) {
+        res.send({ message: 'User Already Exists', insertedId: null })
       }
       const result = await userCollection.insertOne(user);
       res.send(result)
     })
 
+    app.patch('/user/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: 'admin'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    })
+
+    app.delete('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result);
+    })
 
     app.get('/menu', async (req, res) => {
       const result = await menuCollention.find().toArray();
